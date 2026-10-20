@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crop Yield SQL Quiz</title>
+  <meta name="description" content="A 20-point SQL quiz on global crop yield, rainfall, temperature and pesticide data." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">🌱</span>
+      <div>
+        <h1>Crop Yield SQL Quiz</h1>
+        <p class="sub">20 points · FAO &amp; World Bank crop data</p>
+      </div>
+    </div>
+    <div class="user" id="userBox" hidden>
+      <span id="userEmail"></span>
+      <button class="btn ghost" id="signOutBtn" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <!-- Sign-in -->
+  <main id="authView" class="auth-wrap" hidden>
+    <section class="card auth-card">
+      <h2 id="authTitle">Sign in to take the quiz</h2>
+      <p class="muted">You need an account to run SQL against the database.</p>
+      <div class="tabs" role="tablist">
+        <button class="tab active" id="tabSignIn" type="button" role="tab" aria-selected="true">Sign in</button>
+        <button class="tab" id="tabSignUp" type="button" role="tab" aria-selected="false">Create account</button>
+      </div>
+      <form id="authForm" novalidate>
+        <label>Email
+          <input id="authEmail" type="email" autocomplete="email" required />
+        </label>
+        <label>Password
+          <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required />
+        </label>
+        <button class="btn primary wide" id="authSubmit" type="submit">Sign in</button>
+      </form>
+      <p class="msg" id="authMsg" role="status"></p>
+    </section>
+  </main>
+
+  <!-- Quiz -->
+  <div id="quizView" class="layout" hidden>
+    <nav class="sidebar" aria-label="Questions">
+      <ol class="qlist" id="qList"></ol>
+      <div class="total">Total: <strong id="totalPoints">20</strong> points</div>
+    </nav>
+
+    <main class="content">
+      <section class="card question" id="questionCard">
+        <div class="q-head">
+          <div>
+            <p class="eyebrow" id="qEyebrow"></p>
+            <h2 id="qTitle"></h2>
+          </div>
+          <div class="q-meta">
+            <span class="badge accent" id="qBadge" hidden></span>
+            <span class="badge" id="qPoints"></span>
+          </div>
+        </div>
+        <p class="skills" id="qSkills"></p>
+        <div class="prompt" id="qPrompt"></div>
+
+        <details class="schema">
+          <summary>Tables &amp; columns</summary>
+          <div id="schemaList"></div>
+        </details>
+
+        <div class="editor-wrap">
+          <label for="sqlEditor" class="sr-only">Your SQL</label>
+          <textarea id="sqlEditor" spellcheck="false" autocomplete="off" autocapitalize="off"
+            placeholder="Write your SELECT or WITH query here…"></textarea>
+          <div class="editor-bar">
+            <span class="kbd-hint">Ctrl/⌘ + Enter to run</span>
+            <div class="editor-actions">
+              <button class="btn ghost" id="clearBtn" type="button">Clear</button>
+              <button class="btn primary" id="runBtn" type="button">Run query ▶</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="result" id="resultBox" aria-live="polite">
+          <p class="status" id="resultStatus">Run a query to see the result table here.</p>
+          <div class="table-scroll" id="resultTable"></div>
+        </div>
+
+        <details class="hint" id="hintBox">
+          <summary>Hint: expected SQL &amp; expected result</summary>
+          <div class="hint-body">
+            <div class="hint-sql-head">
+              <h3>Expected SQL</h3>
+              <button class="btn ghost small" id="useHintBtn" type="button">Copy into editor</button>
+            </div>
+            <pre><code id="hintSql"></code></pre>
+            <h3>Expected result</h3>
+            <div class="table-scroll" id="hintTable"></div>
+            <p class="note" id="hintNote" hidden></p>
+          </div>
+        </details>
+      </section>
+    </main>
+  </div>
+
+  <div id="loading" class="loading">Loading…</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

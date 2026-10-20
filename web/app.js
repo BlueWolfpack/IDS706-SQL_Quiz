@@ -37,10 +37,12 @@
     resultStatus: $("resultStatus"),
     resultTable: $("resultTable"),
     hintBox: $("hintBox"),
-    hintSql: $("hintSql"),
-    hintTable: $("hintTable"),
-    hintNote: $("hintNote"),
-    useHintBtn: $("useHintBtn"),
+    hintList: $("hintList"),
+    answerBox: $("answerBox"),
+    answerSql: $("answerSql"),
+    answerTable: $("answerTable"),
+    answerNote: $("answerNote"),
+    useAnswerBtn: $("useAnswerBtn"),
   };
 
   const client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
@@ -188,10 +190,12 @@
     el.editor.value = store.get("quiz:sql:" + q.id) || "";
 
     el.hintBox.open = false;
-    el.hintSql.textContent = q.sql;
-    renderTable(el.hintTable, q.expected.columns, q.expected.rows.map((r) => toObj(q.expected.columns, r)));
-    el.hintNote.hidden = !q.note;
-    el.hintNote.textContent = q.note ? "Note: " + q.note : "";
+    el.hintList.innerHTML = (q.hints || []).map((h) => "<li>" + h + "</li>").join(""); // trusted, authored content
+    el.answerBox.open = false;
+    el.answerSql.textContent = q.sql;
+    renderTable(el.answerTable, q.expected.columns, q.expected.rows.map((r) => toObj(q.expected.columns, r)));
+    el.answerNote.hidden = !q.note;
+    el.answerNote.textContent = q.note ? "Note: " + q.note : "";
 
     const prev = lastResult[q.id];
     if (prev) {
@@ -240,7 +244,7 @@
     el.editor.focus();
   });
 
-  el.useHintBtn.addEventListener("click", () => {
+  el.useAnswerBtn.addEventListener("click", () => {
     el.editor.value = questions[current].sql;
     saveEditor();
     el.editor.focus();

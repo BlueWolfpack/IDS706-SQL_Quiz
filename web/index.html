@@ -94,16 +94,23 @@
         </div>
 
         <details class="hint" id="hintBox">
-          <summary>Hint: expected SQL &amp; expected result</summary>
+          <summary>💡 Hint: which functions and joins to use</summary>
+          <div class="hint-body">
+            <ul class="hint-list" id="hintList"></ul>
+          </div>
+        </details>
+
+        <details class="answer" id="answerBox">
+          <summary>✅ Answer: expected SQL &amp; expected result</summary>
           <div class="hint-body">
             <div class="hint-sql-head">
               <h3>Expected SQL</h3>
-              <button class="btn ghost small" id="useHintBtn" type="button">Copy into editor</button>
+              <button class="btn ghost small" id="useAnswerBtn" type="button">Copy into editor</button>
             </div>
-            <pre><code id="hintSql"></code></pre>
+            <pre><code id="answerSql"></code></pre>
             <h3>Expected result</h3>
-            <div class="table-scroll" id="hintTable"></div>
-            <p class="note" id="hintNote" hidden></p>
+            <div class="table-scroll" id="answerTable"></div>
+            <p class="note" id="answerNote" hidden></p>
           </div>
         </details>
       </section>

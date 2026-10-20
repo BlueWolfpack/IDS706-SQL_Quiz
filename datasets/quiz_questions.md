@@ -20,7 +20,14 @@ All tables join on `area` (country name) and `year`.
 
 For each crop (`item`) in the `yield` table, show the number of records and the average yield rounded to a whole number. Sort from highest to lowest average yield.
 
-**Hint: expected SQL**
+**Hint (clues)**
+- Everything you need is in the `yield` table; no join needed.
+- You want one row per crop, so `GROUP BY item`.
+- `COUNT(*)` counts the records in each group; `AVG(yield_hg_per_ha)` averages the yield.
+- Wrap the average in `ROUND(...)` with no second argument to get a whole number.
+- Give the columns names with `AS` (e.g. `num_records`, `avg_yield`) and sort with `ORDER BY avg_yield DESC`.
+
+**Answer: expected SQL**
 ```sql
 SELECT item,
        COUNT(*) AS num_records,
@@ -30,7 +37,7 @@ GROUP BY item
 ORDER BY avg_yield DESC;
 ```
 
-**Hint: expected result (10 rows)**
+**Answer: expected result (10 rows)**
 
 | item | num_records | avg_yield |
 |---|---|---|
@@ -51,7 +58,13 @@ ORDER BY avg_yield DESC;
 
 Which 5 countries had the highest maize yield in 2013? Show each country, its maize yield, and its average rainfall that year.
 
-**Hint: expected SQL**
+**Hint (clues)**
+- Yield is in `yield` and rainfall is in `rainfall`, so you need a `JOIN`.
+- Match rows on **both** country and year: `ON r.area = y.area AND r.year = y.year`. Short table aliases (`y`, `r`) keep it readable.
+- Filter in `WHERE`: the crop is `'Maize'` (text in single quotes, capital M) and the year is 2013.
+- Sort by yield from highest to lowest and keep only the first 5 rows with `LIMIT`.
+
+**Answer: expected SQL**
 ```sql
 SELECT y.area,
        y.yield_hg_per_ha,
@@ -63,7 +76,7 @@ ORDER BY y.yield_hg_per_ha DESC
 LIMIT 5;
 ```
 
-**Hint: expected result**
+**Answer: expected result**
 
 | area | yield_hg_per_ha | avg_rainfall_mm |
 |---|---|---|
@@ -81,7 +94,14 @@ LIMIT 5;
 
 Using the `temp` table for the years 1990 through 2013, find the countries whose average temperature over that period was above 28 °C. Show the country, how many years of data it has in that range, and the average temperature rounded to 2 decimals. Sort hottest first.
 
-**Hint: expected SQL**
+**Hint (clues)**
+- Only the `temp` table is needed.
+- Use `WHERE year >= 1990 AND year <= 2013` to keep the right years *before* grouping.
+- `GROUP BY area` gives one row per country; `COUNT(*)` then counts its years.
+- `WHERE` can't filter on an average. Use `HAVING AVG(avg_temp_c) > 28` to filter the groups.
+- `ROUND(value, 2)` rounds to 2 decimals. Sort hottest first.
+
+**Answer: expected SQL**
 ```sql
 SELECT area,
        COUNT(*) AS years,
@@ -93,7 +113,7 @@ HAVING AVG(avg_temp_c) > 28
 ORDER BY avg_temp DESC;
 ```
 
-**Hint: expected result**
+**Answer: expected result**
 
 | area | years | avg_temp |
 |---|---|---|
@@ -107,7 +127,13 @@ ORDER BY avg_temp DESC;
 
 Which 3 countries used the most pesticides **in total** from 1990 to 2016, and what was their average potato yield over the same years? Round both numbers to whole numbers.
 
-**Hint: expected SQL**
+**Hint (clues)**
+- Join `pesticides` to `yield` on both `area` and `year`.
+- Keep only potato rows with `WHERE y.item = 'Potatoes'`. Each country-year then appears once, so the pesticide total isn't counted once per crop.
+- `GROUP BY` the country, then use `SUM(...)` for total pesticides and `AVG(...)` for potato yield, each inside `ROUND(...)`.
+- Sort by the pesticide total, highest first, and keep 3 rows.
+
+**Answer: expected SQL**
 ```sql
 SELECT p.area,
        ROUND(SUM(p.pesticides_tonnes)) AS total_pesticides,
@@ -120,7 +146,7 @@ ORDER BY total_pesticides DESC
 LIMIT 3;
 ```
 
-**Hint: expected result**
+**Answer: expected result**
 
 | area | total_pesticides | avg_potato_yield |
 |---|---|---|
@@ -143,7 +169,14 @@ Ignore countries that have no rainfall data at all. Then, for each climate group
 
 Use at least one CTE (`WITH`).
 
-**Hint: expected SQL**
+**Hint (clues)**
+- Work in steps. One `WITH` can hold several named queries separated by commas: `WITH step1 AS (...), step2 AS (...) SELECT ...`.
+- Step 1: average rainfall per country from `rainfall` (`GROUP BY area`).
+- `AVG` skips NULLs, but a country whose rainfall is *all* NULL ends up with a NULL average. `COUNT(column)` also skips NULLs, so `HAVING COUNT(avg_rainfall_mm) > 0` removes those countries.
+- Step 2: label each country with `CASE WHEN ... THEN 'Dry' WHEN ... THEN 'Moderate' ELSE 'Wet' END`. The first `WHEN` that matches wins, so check the smallest range first.
+- Final step: join your labelled countries to `yield` on `area`, keep maize in 2013, then `GROUP BY` the climate label.
+
+**Answer: expected SQL**
 ```sql
 WITH country_rain AS (
     SELECT area, AVG(avg_rainfall_mm) AS avg_rain
@@ -169,7 +202,7 @@ GROUP BY c.climate
 ORDER BY avg_maize_yield DESC;
 ```
 
-**Hint: expected result**
+**Answer: expected result**
 
 | climate | num_countries | avg_maize_yield |
 |---|---|---|
@@ -185,7 +218,13 @@ ORDER BY avg_maize_yield DESC;
 
 For each crop, find the country with the highest yield in 2016. Show the crop, the country, and the yield, sorted by crop name.
 
-**Hint: expected SQL**
+**Hint (clues)**
+- Keep only 2016 rows from `yield`.
+- `RANK() OVER (PARTITION BY item ORDER BY yield_hg_per_ha DESC)` numbers the countries 1, 2, 3, ... separately for each crop.
+- You can't use a window function in the `WHERE` of the same query. Compute the rank in a CTE, then select from the CTE `WHERE` the rank is 1.
+- Sort the final rows by crop name.
+
+**Answer: expected SQL**
 ```sql
 WITH ranked AS (
     SELECT item, area, yield_hg_per_ha,
@@ -199,7 +238,7 @@ WHERE rnk = 1
 ORDER BY item;
 ```
 
-**Hint: expected result (10 rows, no ties)**
+**Answer: expected result (10 rows, no ties)**
 
 | item | area | yield_hg_per_ha |
 |---|---|---|
@@ -219,6 +258,14 @@ ORDER BY item;
 ## Bonus / alternate (not counted): Worst wheat years in the US (LAG)
 
 Using `LAG`, find the 3 years with the largest year-over-year **drop** in US wheat yield.
+
+**Hint (clues)**
+- In a CTE, keep only US wheat rows (`area = 'United States of America'`, `item = 'Wheat'`).
+- `LAG(yield_hg_per_ha) OVER (ORDER BY year)` returns the previous year's yield on each row.
+- The change is this year's yield minus the previous year's. A drop is a negative number, so the biggest drops sort first with `ORDER BY change ASC`.
+- The first year has no previous year, so its change is NULL. When sorting ascending, Postgres puts NULLs last.
+
+**Answer**
 
 ```sql
 WITH us AS (

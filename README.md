@@ -2,9 +2,9 @@
 
 **Live quiz site: https://ids706-sqlquiz-web.vercel.app/**
 
-A 20-point SQL quiz about global crop yields. A signed-in user picks a question, writes SQL in the browser, runs it against a real PostgreSQL database hosted on Supabase, and sees the result table. Every question has a hint showing the expected SQL and the expected result, so a grader can run a query and compare it to the hint.
+A 20-point SQL quiz about global crop yields. A signed-in user picks a question, writes SQL in the browser, runs it against a real PostgreSQL database hosted on Supabase, and sees the result table. Every question has two separate help panels: a **Hint** with clues (which functions to use, how to join the tables, what to watch out for) and an **Answer** with the expected SQL and the expected result, so a grader can run a query and compare it to the answer.
 
-![Quiz site: question 5 with a query run and the hint open](docs/quiz-screenshot.png)
+![Quiz site: question 5 with a query run and the hint and answer open](docs/quiz-screenshot.png)
 
 ---
 
@@ -15,7 +15,7 @@ A 20-point SQL quiz about global crop yields. A signed-in user picks a question,
 4. [How the system is set up](#how-the-system-is-set-up)
 5. [Repository layout](#repository-layout)
 6. [Rebuilding it from scratch](#rebuilding-it-from-scratch)
-7. [Secrets](#secrets)
+7. [Project requirements](#project-requirements)
 8. [Earlier PostgreSQL demo files](#earlier-postgresql-demo-files)
 
 ---
@@ -28,10 +28,11 @@ A 20-point SQL quiz about global crop yields. A signed-in user picks a question,
 3. Pick a question from the list on the left (on a phone, the list scrolls sideways across the top).
 4. Write a query in the editor and click **Run query ▶** (or press **Ctrl + Enter** / **⌘ + Enter**).
    The result table appears under the editor, with the row count.
-5. Open **Hint: expected SQL & expected result** to see the answer key. **Copy into editor** puts the expected SQL in the editor so it can be run directly.
-6. **Tables & columns** (above the editor) lists every table and column.
+5. Stuck? Open **💡 Hint** for clues: which functions to use, how to join the tables, and common traps. The hint does not give the full query.
+6. Open **✅ Answer: expected SQL & expected result** to see the answer key. **Copy into editor** puts the expected SQL in the editor so it can be run directly.
+7. **Tables & columns** (above the editor) lists every table and column.
 
-**Grading:** open a question, run SQL, and compare the result table to the expected result in the hint. Values are shown exactly as the database returns them (no thousands separators), so they match the hint character for character.
+**Grading:** open a question, run SQL, and compare the result table to the expected result in the **Answer** panel. Values are shown exactly as the database returns them (no thousands separators), so they match the answer character for character.
 
 **Rules enforced by the database**
 - Only `SELECT` or `WITH ... SELECT` queries; one statement per run (a trailing `;` is fine).
@@ -58,7 +59,7 @@ SQL used across the quiz: `SELECT`, `FROM`, `WHERE`, `JOIN ... ON`, `GROUP BY`, 
 | ★ | Bonus (not graded): worst year-over-year drops in US wheat yield | 0 | `LAG() OVER`, `WITH` |
 | | **Total** | **20** | |
 
-The full question text, expected SQL and expected results are in [`datasets/quiz_questions.md`](datasets/quiz_questions.md) and in [`web/questions.js`](web/questions.js) (the file the site reads). All expected results were checked by running the hint SQL against the live database.
+The full question text, hints, expected SQL and expected results are in [`datasets/quiz_questions.md`](datasets/quiz_questions.md) and in [`web/questions.js`](web/questions.js) (the file the site reads). All expected results were checked by running the expected SQL against the live database.
 
 ---
 
@@ -123,9 +124,9 @@ flowchart LR
 
 ```
 ├── web/                     Quiz website (deployed by Vercel)
-│   ├── index.html           Page structure (sign-in card, question list, editor, results, hint)
+│   ├── index.html           Page structure (sign-in card, question list, editor, results, hint, answer)
 │   ├── app.js               Sign-in, navigation, running SQL, rendering result tables
-│   ├── questions.js         Questions, points, hint SQL and expected results
+│   ├── questions.js         Questions, points, hints, expected SQL and results
 │   ├── config.js            Supabase URL + public anon key
 │   └── styles.css           Styling (light and dark mode, phone layout)
 ├── supabase/
@@ -167,6 +168,7 @@ flowchart LR
 - Those who sign in to the quiz are recorded in supabase
 
 ![Supabase Authentication with first user](auth.png)
+
 **Secrets**
 
 - The **database password** is stored as a secret in the GitHub environment **`SQL-Quiz`** (screenshot: [`psst.png`](psst.png)) and, for local scripts, in a `.env` file that is listed in `.gitignore` and never committed.

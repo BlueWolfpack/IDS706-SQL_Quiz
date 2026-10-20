@@ -226,18 +226,23 @@ td.null { color: var(--muted); font-style: italic; }
 tbody tr:hover td { background: var(--surface-2); }
 .table-scroll { border: 1px solid var(--border); }
 
-/* ---------- Hint ---------- */
+/* ---------- Hint & answer ---------- */
 .hint { background: var(--gold-soft); border-color: transparent; }
 .hint summary { color: var(--gold); }
+.hint-list { margin: 4px 0 0; padding-left: 20px; }
+.hint-list li { margin: 0 0 8px; }
+.hint-list li:last-child { margin-bottom: 0; }
+.answer { background: var(--accent-soft); border-color: transparent; }
+.answer summary { color: var(--accent-strong); }
 .hint-body { padding: 0 16px 16px; }
 .hint-body h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 10px 0 8px; }
 .hint-sql-head { display: flex; justify-content: space-between; align-items: center; }
-.hint pre {
+.hint pre, .answer pre {
   margin: 0; padding: 14px 16px; overflow: auto;
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
   font-size: 13px; line-height: 1.6;
 }
-.hint pre code { background: none; border: 0; padding: 0; }
+.hint pre code, .answer pre code { background: none; border: 0; padding: 0; }
 .note { margin: 12px 0 0; font-size: 14px; }
 
 .loading { padding: 48px; text-align: center; color: var(--muted); }

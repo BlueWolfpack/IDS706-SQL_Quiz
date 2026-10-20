@@ -162,7 +162,12 @@ flowchart LR
 
 ---
 
-## Secrets
+## Project Requirements
+**Supabase Auth**
+- Those who sign in to the quiz are recorded in supabase
+
+![Supabase Authentication with first user](auth.png)
+**Secrets**
 
 - The **database password** is stored as a secret in the GitHub environment **`SQL-Quiz`** (screenshot: [`psst.png`](psst.png)) and, for local scripts, in a `.env` file that is listed in `.gitignore` and never committed.
 - The website does not need the password: it only uses the public anon key in `web/config.js`.

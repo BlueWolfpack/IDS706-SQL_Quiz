@@ -1,0 +1,36 @@
+name: Quiz database check
+
+# Runs on every push to main, and can be started by hand from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check-database:
+    runs-on: ubuntu-latest
+    # The GitHub environment that holds the POSTGRES_PASSWORD secret.
+    environment: SQL-Quiz
+    env:
+      # Supabase Session pooler connection details (not secret).
+      DB_HOST: aws-0-us-east-1.pooler.supabase.com
+      DB_PORT: "5432"
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres.xhxjetcmwanygtujnxrn
+      DB_SSLMODE: require
+      # The password comes only from the GitHub secret; it is never written in this file.
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check data, quiz answers and audit log integrity
+        run: python scripts/check_quiz.py

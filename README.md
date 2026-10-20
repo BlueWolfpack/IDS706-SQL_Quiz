@@ -28,9 +28,10 @@ A 20-point SQL quiz about global crop yields. A signed-in user picks a question,
 3. Pick a question from the list on the left (on a phone, the list scrolls sideways across the top).
 4. Write a query in the editor and click **Run query ▶** (or press **Ctrl + Enter** / **⌘ + Enter**).
    The result table appears under the editor, with the row count.
-5. Stuck? Open **💡 Hint** for clues: which functions to use, how to join the tables, and common traps. The hint does not give the full query.
-6. Open **✅ Answer: expected SQL & expected result** to see the answer key. **Copy into editor** puts the expected SQL in the editor so it can be run directly.
-7. **Tables & columns** (above the editor) lists every table and column.
+5. Click **Save answer** to store your SQL for this question in the database. A ✓ appears next to the question in the list, and saved answers load again the next time you sign in, on any device. Only signed-in users can save, and each user can only see their own saved answers.
+6. Stuck? Open **💡 Hint** for clues: which functions to use, how to join the tables, and common traps. The hint does not give the full query.
+7. Open **✅ Answer: expected SQL & expected result** to see the answer key. **Copy into editor** puts the expected SQL in the editor so it can be run directly.
+8. **Tables & columns** (above the editor) lists every table and column.
 
 **Grading:** open a question, run SQL, and compare the result table to the expected result in the **Answer** panel. Values are shown exactly as the database returns them (no thousands separators), so they match the answer character for character.
 
@@ -39,8 +40,9 @@ A 20-point SQL quiz about global crop yields. A signed-in user picks a question,
 - No changes to data are possible (no `INSERT`, `UPDATE`, `DELETE`, `DROP`, ...).
 - At most 1,000 rows are displayed, and a query is stopped after 8 seconds.
 - `--` comments are allowed.
+- Every run and every save is recorded in an audit log (who, which question, the SQL, whether it worked, when).
 
-What you type is saved in your browser, per question, so you can switch questions without losing work.
+Unsaved work is also kept as a draft in your browser, per question, so you can switch questions without losing it.
 
 ---
 
@@ -101,20 +103,36 @@ flowchart LR
     U -->|runs a query| P[Supabase API]
     P --> F[Postgres function<br/>run_quiz_sql]
     F -->|read-only| D[(yield, pesticides, rainfall, temp<br/>and view yield_df)]
+    F -->|logs each run| L[(audit_log)]
+    U -->|saves answers| S[(quiz_answers)]
+    S -->|trigger logs each save| L
+    G[GitHub Actions] -->|Session pooler, sslmode=require,<br/>secret POSTGRES_PASSWORD| D
 ```
 
 **Website (Vercel).** `web/` is a static site: plain HTML, CSS and JavaScript, with no build step. Vercel deploys it from this GitHub repo with **Root Directory = `web`**, and redeploys automatically on every push to `main`. The page loads the Supabase JavaScript client (`@supabase/supabase-js` v2) from a CDN.
 
 **Sign-in (Supabase Auth).** Email and password accounts. The site only shows the quiz to signed-in users, and only signed-in users can run SQL.
 
-**Running SQL (Supabase Postgres).** The browser never connects to the database directly. It calls one Postgres function, `public.run_quiz_sql(query text)`, through Supabase's API. The function ([`supabase/run_quiz_sql.sql`](supabase/run_quiz_sql.sql)):
+**Running SQL (Supabase Postgres).** The browser never connects to the database directly. It calls one Postgres function, `public.run_quiz_sql(query, question_id)`, through Supabase's API. The function ([`supabase/answers_and_audit.sql`](supabase/answers_and_audit.sql)):
 - can only be called by signed-in users (the `authenticated` role); anonymous visitors are refused;
 - accepts a single `SELECT` or `WITH` statement and rejects anything else;
 - runs the query wrapped as a subquery, which also blocks data-changing statements hidden inside a `WITH`;
-- runs with the caller's own permissions (`SECURITY INVOKER`), so the tables' row level security still applies: read-only;
+- runs as `quiz_runner`, a dedicated low-privilege role that can only read the quiz tables and add rows to the audit log (no other tables, no row level security bypass), so a student's query can't change data or read other users' answers or log entries;
+- records the run (user, email, question, SQL, success or error, row count) in `audit_log`;
 - returns at most 1,001 rows as JSON (the site shows 1,000 and says when there were more); Supabase stops queries from signed-in users after 8 seconds.
 
-**Database security.** Row level security (RLS) is on for all four tables, with a single "public read" policy each. Anyone can read the data; nobody can insert, update or delete through the API.
+**Saving answers.** The **Save answer** button writes to the `quiz_answers` table (one row per user per question). Row level security lets each signed-in user read, insert and update only their own rows; signed-out visitors have no access, so they can't save. A trigger records every save in `audit_log`.
+
+**Audit log.** `audit_log` has one row per run and per save. Quiz takers can read only their own rows and have no permission to insert, update or delete any row. A trigger also rejects `UPDATE`, `DELETE` and `TRUNCATE` for every role, including the database owner, so the log is append-only.
+
+**GitHub Actions.** [`.github/workflows/quiz-check.yml`](.github/workflows/quiz-check.yml) runs on every push to `main` (and on demand from the **Actions** tab). It uses the GitHub environment **`SQL-Quiz`**, reads the database password from the secret **`POSTGRES_PASSWORD`** (never written in the workflow file), and runs [`scripts/check_quiz.py`](scripts/check_quiz.py). The script connects with `psycopg2` through Supabase's **Session pooler** with `sslmode=require` and checks that:
+- every table has the expected number of rows;
+- every question's expected SQL returns exactly its expected result (read directly from `web/questions.js`) and the points add up to 20;
+- the audit log rejects an `UPDATE` (append-only).
+
+The run fails if any check fails, and its log lists each check as PASS or FAIL.
+
+**Database security.** Row level security (RLS) is on for every table. The four data tables have a single "public read" policy each: anyone can read the data, nobody can insert, update or delete through the API. `quiz_answers` and `audit_log` are covered above.
 
 **Configuration.** [`web/config.js`](web/config.js) holds the Supabase project URL and the **anon** (public) API key. The anon key is designed to be public and only allows what RLS and the function grants allow. The `service_role` key and the database password are never in the repo.
 
@@ -125,12 +143,16 @@ flowchart LR
 ```
 ├── web/                     Quiz website (deployed by Vercel)
 │   ├── index.html           Page structure (sign-in card, question list, editor, results, hint, answer)
-│   ├── app.js               Sign-in, navigation, running SQL, rendering result tables
+│   ├── app.js               Sign-in, navigation, running and saving SQL, rendering result tables
 │   ├── questions.js         Questions, points, hints, expected SQL and results
 │   ├── config.js            Supabase URL + public anon key
 │   └── styles.css           Styling (light and dark mode, phone layout)
 ├── supabase/
-│   └── run_quiz_sql.sql     The read-only SQL runner function the site calls
+│   └── answers_and_audit.sql  SQL runner function, saved answers table, append-only audit log
+├── .github/workflows/
+│   └── quiz-check.yml       GitHub Actions workflow (uses the POSTGRES_PASSWORD secret)
+├── scripts/
+│   └── check_quiz.py        Database check run by the workflow (Session pooler, sslmode=require)
 ├── datasets/
 │   ├── *.csv                Raw Kaggle files
 │   ├── quiz_questions.md    Quiz questions with expected SQL and results
@@ -139,7 +161,7 @@ flowchart LR
 │       └── *.csv            Cleaned data loaded into Supabase
 ├── docs/quiz-screenshot.png Screenshot used in this README
 ├── init.sql, query.py,      Earlier PostgreSQL demo (see below)
-│   requirements.txt
+│   requirements.txt         (requirements.txt is also used by the workflow)
 └── psst.png                 Screenshot of the GitHub environment holding the secret
 ```
 
@@ -151,13 +173,14 @@ flowchart LR
 2. **Schema.** In **SQL Editor**, run [`datasets/cleaned/schema.sql`](datasets/cleaned/schema.sql).
 3. **Data.** In **Table Editor**, open each table → **Insert → Import data from CSV**, and upload the matching file from `datasets/cleaned/`: `yield.csv`, `pesticides.csv`, `rainfall.csv`, `temp.csv`. Do not import `yield_df.csv`.
    Check the row counts: 56,717 / 4,349 / 6,727 / 27,479, and `select count(*) from yield_df` → 15,610.
-4. **SQL runner.** In **SQL Editor**, run [`supabase/run_quiz_sql.sql`](supabase/run_quiz_sql.sql).
+4. **SQL runner, saved answers and audit log.** In **SQL Editor**, run [`supabase/answers_and_audit.sql`](supabase/answers_and_audit.sql).
 5. **Site config.** Put your project URL and anon key (Project Settings → API) in [`web/config.js`](web/config.js).
 6. **Deploy on Vercel.** **Add New → Project → Import** this GitHub repo; set **Root Directory** to `web`, Framework Preset **Other**, leave the Build Command empty, then **Deploy**.
 7. **Auth settings (Supabase → Authentication).**
    - **URL Configuration:** set **Site URL** to the Vercel address (here `https://ids706-sqlquiz-web.vercel.app`) and add `https://ids706-sqlquiz-web.vercel.app/**` under **Redirect URLs**, so confirmation emails link back to the site.
    - **Sign In / Providers → Email:** with **Confirm email** on, new users must click an emailed link before signing in, and Supabase's built-in email sender only sends a few emails per hour. Turn it off for easy grading, or create accounts under **Users → Add user** with **Auto Confirm User** ticked.
-8. **Test.** Sign in on the site, open Question 1, click **Copy into editor**, and run it: you should get 10 rows starting with `Potatoes | 7876 | 150083`.
+8. **GitHub Actions secret.** In the GitHub repo: **Settings → Environments → New environment** named `SQL-Quiz`, then **Add environment secret** `POSTGRES_PASSWORD` with the database password. If your project isn't this one, also change the Session pooler host and user in `.github/workflows/quiz-check.yml` (Supabase → **Connect** → **Session pooler**).
+9. **Test.** Sign in on the site, open Question 1, click **Copy into editor**, and run it: you should get 10 rows starting with `Potatoes | 7876 | 150083`. Push a commit (or use **Run workflow** in the Actions tab) and check that **Quiz database check** passes.
 
 **Previewing the site locally:** from the `web/` folder run `python -m http.server 8000` and open http://localhost:8000. It talks to the same Supabase project.
 
@@ -175,6 +198,18 @@ flowchart LR
 - The website does not need the password: it only uses the public anon key in `web/config.js`.
 
 ![GitHub environment SQL-Quiz with 1 secret](psst.png)
+
+**GitHub Actions**
+- Workflow **Quiz database check** ([`.github/workflows/quiz-check.yml`](.github/workflows/quiz-check.yml)) runs on every push to `main`, uses the `SQL-Quiz` environment secret `POSTGRES_PASSWORD`, and connects through the Session pooler with `sslmode=require`. See [GitHub Actions](#how-the-system-is-set-up) above for what it checks. Runs are listed in the repo's **Actions** tab.
+
+**Saving and running**
+- Signed-out users see only the sign-in page and are refused by the database if they try to run a query or save.
+- Signed-in users can run queries and save answers.
+
+**Extra credit**
+- **Parameterised queries:** `scripts/check_quiz.py` passes values with `%s` parameters (e.g. `WHERE item = %s AND year = %s`), never f-string SQL; `query.py` from the demo does the same.
+- **Audit log:** every query run and every save is recorded in `audit_log` with the user, question, SQL and result.
+- **Integrity check:** quiz takers can't insert, update or delete log rows, a trigger blocks `UPDATE`/`DELETE`/`TRUNCATE` for every role, and the GitHub Actions check confirms an `UPDATE` is rejected on every run.
 
 ---
 

@@ -1,5 +1,5 @@
 -- Saving quiz answers + append-only audit log (extra credit).
--- Run after datasets/cleaned/schema.sql. Replaces supabase/run_quiz_sql.sql's function with a logging version.
+-- Run after datasets/cleaned/schema.sql and the CSV imports. Creates the run_quiz_sql function the website calls.
 --
 -- Design
 --  * quiz_answers: each signed-in user can read/insert/update/delete only their own saved answers (RLS).

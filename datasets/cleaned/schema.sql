@@ -5,7 +5,7 @@
 --   2. Table Editor -> each table -> Insert -> "Import data from CSV", using the matching file in
 --      datasets/cleaned/: yield.csv, pesticides.csv, rainfall.csv, temp.csv.
 --      (Do NOT import yield_df.csv: yield_df is a view built from the four tables.)
---   3. Run supabase/run_quiz_sql.sql to add the function the website uses to run queries.
+--   3. Run supabase/answers_and_audit.sql (query runner, saved answers, audit log).
 --
 -- Data source: Kaggle "Crop Yield Prediction Dataset" (patelris), built from FAO and World Bank data.
 -- Country names use FAO spelling in every table, so all tables join on (area, year).

@@ -34,6 +34,8 @@
     editor: $("sqlEditor"),
     runBtn: $("runBtn"),
     clearBtn: $("clearBtn"),
+    saveBtn: $("saveBtn"),
+    saveStatus: $("saveStatus"),
     resultStatus: $("resultStatus"),
     resultTable: $("resultTable"),
     hintBox: $("hintBox"),
@@ -58,6 +60,8 @@
   let current = 0;
   let saveTimer = null;
   const lastResult = {}; // question id -> {status, cls, rows, columns}
+  let currentUser = null;
+  let saved = {}; // question id -> {sql, saved_at} loaded from the quiz_answers table
 
   // ---------- auth view ----------
   function setMode(next) {
@@ -115,14 +119,72 @@
     el.authMsg.className = cls;
   }
 
-  function render(session) {
+  async function render(session) {
     el.loading.hidden = true;
     const signedIn = !!session;
     el.authView.hidden = signedIn;
     el.quizView.hidden = !signedIn;
     el.userBox.hidden = !signedIn;
     el.userEmail.textContent = signedIn ? session.user.email : "";
+    const newUser = signedIn ? session.user.id : null;
+    if (newUser !== currentUser) {
+      currentUser = newUser;
+      saved = {};
+      if (signedIn) await loadSavedAnswers();
+      markSavedInNav();
+    }
     if (signedIn) showQuestion(current);
+  }
+
+  // ---------- saved answers (quiz_answers table; RLS = own rows only) ----------
+  async function loadSavedAnswers() {
+    const { data, error } = await client.from("quiz_answers").select("question_id, sql, saved_at");
+    if (error) return; // the quiz still works without saved answers
+    (data || []).forEach((r) => { saved[r.question_id] = { sql: r.sql, saved_at: r.saved_at }; });
+  }
+
+  async function saveAnswer() {
+    const q = questions[current];
+    const sql = el.editor.value;
+    if (!sql.trim()) { setSaveStatus("Write a query before saving.", "error"); return; }
+    el.saveBtn.disabled = true;
+    setSaveStatus("Saving…", "");
+    const row = { user_id: currentUser, question_id: q.id, sql, saved_at: new Date().toISOString() };
+    const { error } = await client.from("quiz_answers").upsert(row, { onConflict: "user_id,question_id" });
+    el.saveBtn.disabled = false;
+    if (error) { setSaveStatus("Could not save: " + error.message, "error"); return; }
+    saved[q.id] = { sql, saved_at: row.saved_at };
+    markSavedInNav();
+    showSavedStatus(q);
+  }
+
+  function setSaveStatus(text, cls) {
+    el.saveStatus.textContent = text;
+    el.saveStatus.className = "save-status" + (cls ? " " + cls : "");
+  }
+
+  function showSavedStatus(q) {
+    const s = saved[q.id];
+    if (!s) { setSaveStatus("Not saved yet.", ""); return; }
+    const when = new Date(s.saved_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    const same = s.sql === el.editor.value;
+    setSaveStatus(same ? "✓ Saved " + when : "Saved " + when + " · unsaved changes", same ? "ok" : "");
+  }
+
+  function markSavedInNav() {
+    [...el.qList.querySelectorAll("button")].forEach((b, j) => {
+      const mark = b.querySelector(".saved-mark");
+      const has = !!saved[questions[j].id];
+      if (has && !mark) {
+        const m = document.createElement("span");
+        m.className = "saved-mark";
+        m.textContent = "✓";
+        m.title = "Answer saved";
+        b.querySelector(".qname").appendChild(m);
+      } else if (!has && mark) {
+        mark.remove();
+      }
+    });
   }
 
   // ---------- quiz navigation ----------
@@ -187,7 +249,9 @@
     el.qSkills.textContent = q.skills || "";
     el.qPrompt.innerHTML = q.prompt; // trusted, authored content from questions.js
 
-    el.editor.value = store.get("quiz:sql:" + q.id) || "";
+    const draft = store.get(draftKey(q.id));
+    el.editor.value = draft !== null ? draft : (saved[q.id] ? saved[q.id].sql : "");
+    showSavedStatus(q);
 
     el.hintBox.open = false;
     el.hintList.innerHTML = (q.hints || []).map((h) => "<li>" + h + "</li>").join(""); // trusted, authored content
@@ -216,10 +280,13 @@
   // ---------- editor ----------
   function saveEditor() {
     const q = questions[current];
-    if (q) store.set("quiz:sql:" + q.id, el.editor.value);
+    if (q && currentUser) store.set(draftKey(q.id), el.editor.value);
   }
 
+  function draftKey(qid) { return "quiz:sql:" + currentUser + ":" + qid; }
+
   el.editor.addEventListener("input", () => {
+    showSavedStatus(questions[current]);
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveEditor, 400);
   });
@@ -266,8 +333,9 @@
     setStatus("Running…", "");
     const started = performance.now();
     try {
-      const { data, error } = await client.rpc("run_quiz_sql", { query: sql });
+      const { data, error } = await client.rpc("run_quiz_sql", { query: sql, question_id: q.id });
       if (error) throw error;
+      if (data && !Array.isArray(data) && data.error) throw new Error(data.error); // failed run (still logged)
       const ms = Math.round(performance.now() - started);
       let rows = Array.isArray(data) ? data : [];
       const truncated = rows.length > MAX_ROWS;
@@ -297,6 +365,7 @@
   }
 
   el.runBtn.addEventListener("click", runQuery);
+  el.saveBtn.addEventListener("click", saveAnswer);
 
   // ---------- table rendering ----------
   function renderTable(container, columns, rows) {
@@ -347,8 +416,8 @@
 
   buildNav();
   buildSchema();
-  const saved = parseInt(store.get("quiz:current") || "0", 10);
-  current = Number.isInteger(saved) && saved >= 0 && saved < questions.length ? saved : 0;
+  const lastOpen = parseInt(store.get("quiz:current") || "0", 10);
+  current = Number.isInteger(lastOpen) && lastOpen >= 0 && lastOpen < questions.length ? lastOpen : 0;
 
   client.auth.onAuthStateChange((_event, session) => render(session));
   client.auth.getSession().then(({ data }) => render(data.session));

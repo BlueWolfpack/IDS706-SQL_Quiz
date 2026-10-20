@@ -80,9 +80,13 @@
           <textarea id="sqlEditor" spellcheck="false" autocomplete="off" autocapitalize="off"
             placeholder="Write your SELECT or WITH query here…"></textarea>
           <div class="editor-bar">
-            <span class="kbd-hint">Ctrl/⌘ + Enter to run</span>
+            <div class="editor-info">
+              <span class="kbd-hint">Ctrl/⌘ + Enter to run</span>
+              <span class="save-status" id="saveStatus" role="status"></span>
+            </div>
             <div class="editor-actions">
               <button class="btn ghost" id="clearBtn" type="button">Clear</button>
+              <button class="btn ghost" id="saveBtn" type="button">Save answer</button>
               <button class="btn primary" id="runBtn" type="button">Run query ▶</button>
             </div>
           </div>

@@ -119,7 +119,7 @@
     el.authMsg.className = cls;
   }
 
-  async function render(session) {
+  function render(session) {
     el.loading.hidden = true;
     const signedIn = !!session;
     el.authView.hidden = signedIn;
@@ -127,13 +127,23 @@
     el.userBox.hidden = !signedIn;
     el.userEmail.textContent = signedIn ? session.user.email : "";
     const newUser = signedIn ? session.user.id : null;
-    if (newUser !== currentUser) {
+    const userChanged = newUser !== currentUser;
+    if (userChanged) {
       currentUser = newUser;
       saved = {};
-      if (signedIn) await loadSavedAnswers();
       markSavedInNav();
     }
     if (signedIn) showQuestion(current);
+    // Load saved answers in the background so the quiz never waits on it.
+    if (signedIn && userChanged) {
+      loadSavedAnswers().then(() => {
+        if (currentUser !== newUser) return; // signed out / switched user meanwhile
+        markSavedInNav();
+        const q = questions[current];
+        if (!el.editor.value && saved[q.id]) el.editor.value = saved[q.id].sql;
+        showSavedStatus(q);
+      });
+    }
   }
 
   // ---------- saved answers (quiz_answers table; RLS = own rows only) ----------
@@ -419,6 +429,8 @@
   const lastOpen = parseInt(store.get("quiz:current") || "0", 10);
   current = Number.isInteger(lastOpen) && lastOpen >= 0 && lastOpen < questions.length ? lastOpen : 0;
 
-  client.auth.onAuthStateChange((_event, session) => render(session));
+  // Supabase runs this callback while holding its auth lock. Calling Supabase (e.g. loading saved
+  // answers) inside it would deadlock every later query and save, so defer the work with setTimeout.
+  client.auth.onAuthStateChange((_event, session) => { setTimeout(() => render(session), 0); });
   client.auth.getSession().then(({ data }) => render(data.session));
 })();

@@ -18,14 +18,16 @@ All tables join on `area` (country name) and `year`.
 
 ## Question 1 (3 points): Crop overview
 
-For each crop (`item`) in the `yield` table, show the number of records and the average yield rounded to a whole number. Sort from highest to lowest average yield.
+For each crop (`item`) in the `yield` table, show the number of records as `num_records` and the average yield rounded to a whole number as `avg_yield`. Sort from highest to lowest average yield and limit the result to 10 rows.
+
+Result columns: `item`, `num_records`, `avg_yield`.
 
 **Hint (clues)**
 - Everything you need is in the `yield` table; no join needed.
 - You want one row per crop, so `GROUP BY item`.
 - `COUNT(*)` counts the records in each group; `AVG(yield_hg_per_ha)` averages the yield.
 - Wrap the average in `ROUND(...)` with no second argument to get a whole number.
-- Give the columns names with `AS` (e.g. `num_records`, `avg_yield`) and sort with `ORDER BY avg_yield DESC`.
+- Sort from the highest average to the lowest with `ORDER BY ... DESC`.
 
 **Answer: expected SQL**
 ```sql
@@ -34,7 +36,8 @@ SELECT item,
        ROUND(AVG(yield_hg_per_ha)) AS avg_yield
 FROM yield
 GROUP BY item
-ORDER BY avg_yield DESC;
+ORDER BY avg_yield DESC
+LIMIT 10;
 ```
 
 **Answer: expected result (10 rows)**
@@ -56,13 +59,15 @@ ORDER BY avg_yield DESC;
 
 ## Question 2 (3 points): Maize and rainfall (JOIN)
 
-Which 5 countries had the highest maize yield in 2013? Show each country, its maize yield, and its average rainfall that year.
+Which 5 countries had the highest maize yield (`item = 'Maize'`) in 2013? Show each country, its maize yield, and its average rainfall that year.
+
+Result columns: `area`, `yield_hg_per_ha`, `avg_rainfall_mm`.
 
 **Hint (clues)**
 - Yield is in `yield` and rainfall is in `rainfall`, so you need a `JOIN`.
 - Match rows on **both** country and year: `ON r.area = y.area AND r.year = y.year`. Short table aliases (`y`, `r`) keep it readable.
 - Filter in `WHERE`: the crop is `'Maize'` (text in single quotes, capital M) and the year is 2013.
-- Sort by yield from highest to lowest and keep only the first 5 rows with `LIMIT`.
+- Sort by yield from highest to lowest.
 
 **Answer: expected SQL**
 ```sql
@@ -92,7 +97,9 @@ LIMIT 5;
 
 ## Question 3 (3 points): Hottest countries (HAVING)
 
-Using the `temp` table for the years 1990 through 2013, find the countries whose average temperature over that period was above 28 °C. Show the country, how many years of data it has in that range, and the average temperature rounded to 2 decimals. Sort hottest first.
+Using the `temp` table for the years 1990 through 2013, find the countries whose average temperature over that period was above 28 °C. Show the country, how many years of data it has in that range as `years`, and the average temperature rounded to 2 decimals as `avg_temp`. Sort hottest first.
+
+Result columns: `area`, `years`, `avg_temp`.
 
 **Hint (clues)**
 - Only the `temp` table is needed.
@@ -125,13 +132,15 @@ ORDER BY avg_temp DESC;
 
 ## Question 4 (3 points): Pesticide leaders (JOIN + aggregate)
 
-Which 3 countries used the most pesticides **in total** from 1990 to 2016, and what was their average potato yield over the same years? Round both numbers to whole numbers.
+Which 3 countries used the most pesticides **in total** from 1990 to 2016, and what was their average potato yield (`item = 'Potatoes'`) over the same years? Name the pesticide total `total_pesticides` and the average potato yield `avg_potato_yield`, and round both to whole numbers.
+
+Result columns: `area`, `total_pesticides`, `avg_potato_yield`.
 
 **Hint (clues)**
 - Join `pesticides` to `yield` on both `area` and `year`.
 - Keep only potato rows with `WHERE y.item = 'Potatoes'`. Each country-year then appears once, so the pesticide total isn't counted once per crop.
 - `GROUP BY` the country, then use `SUM(...)` for total pesticides and `AVG(...)` for potato yield, each inside `ROUND(...)`.
-- Sort by the pesticide total, highest first, and keep 3 rows.
+- Sort by the pesticide total, highest first.
 
 **Answer: expected SQL**
 ```sql
@@ -165,7 +174,9 @@ Classify every country by its **average rainfall across all years**:
 - `Moderate`: 500 mm up to (not including) 1500 mm
 - `Wet`: 1500 mm or more
 
-Ignore countries that have no rainfall data at all. Then, for each climate group, show how many countries reported a maize yield in 2013 and their average 2013 maize yield (rounded). Sort by average yield, highest first.
+Ignore countries that have no rainfall data at all. Then, for each climate group (`climate`), show how many countries reported a maize yield (`item = 'Maize'`) in 2013 as `num_countries` and their average 2013 maize yield, rounded to a whole number, as `avg_maize_yield`. Sort by average yield, highest first.
+
+Result columns: `climate`, `num_countries`, `avg_maize_yield`.
 
 Use at least one CTE (`WITH`).
 
@@ -218,8 +229,10 @@ ORDER BY avg_maize_yield DESC;
 
 For each crop, find the country with the highest yield in 2016. Show the crop, the country, and the yield, sorted by crop name.
 
+Result columns: `item`, `area`, `yield_hg_per_ha`.
+
 **Hint (clues)**
-- Keep only 2016 rows from `yield`.
+- Keep only the rows in `yield` where `year` is 2016.
 - `RANK() OVER (PARTITION BY item ORDER BY yield_hg_per_ha DESC)` numbers the countries 1, 2, 3, ... separately for each crop.
 - You can't use a window function in the `WHERE` of the same query. Compute the rank in a CTE, then select from the CTE `WHERE` the rank is 1.
 - Sort the final rows by crop name.
@@ -257,7 +270,9 @@ ORDER BY item;
 
 ## Bonus / alternate (not counted): Worst wheat years in the US (LAG)
 
-Using `LAG`, find the 3 years with the largest year-over-year **drop** in US wheat yield.
+Using `LAG`, find the 3 years with the largest year-over-year **drop** in US wheat yield (`area = 'United States of America'`). Show the year, the previous year's yield as `prev_yield`, that year's yield, and the change (that year's yield minus the previous year's) as `change`.
+
+Result columns: `year`, `prev_yield`, `yield_hg_per_ha`, `change`.
 
 **Hint (clues)**
 - In a CTE, keep only US wheat rows (`area = 'United States of America'`, `item = 'Wheat'`).

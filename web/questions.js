@@ -32,22 +32,23 @@ window.QUIZ_QUESTIONS = [
     id: "q1",
     title: "Crop overview",
     points: 3,
-    skills: "COUNT · AVG · ROUND · GROUP BY · ORDER BY",
+    skills: "COUNT · AVG · ROUND · GROUP BY · ORDER BY · LIMIT",
     hints: [
       "Everything you need is in the <code>yield</code> table; no join needed.",
       "You want one row per crop, so <code>GROUP BY item</code>.",
       "<code>COUNT(*)</code> counts the records in each group; <code>AVG(yield_hg_per_ha)</code> averages the yield.",
       "Wrap the average in <code>ROUND(...)</code> with no second argument to get a whole number.",
-      "Give the columns names with <code>AS</code> (e.g. <code>num_records</code>, <code>avg_yield</code>) and sort with <code>ORDER BY avg_yield DESC</code>.",
+      "Sort from the highest average to the lowest with <code>ORDER BY ... DESC</code>.",
     ],
     prompt:
-      "<p>For each crop (<code>item</code>) in the <code>yield</code> table, show the number of records and the average yield rounded to a whole number. Sort from highest to lowest average yield.</p>",
+      "<p>For each crop (<code>item</code>) in the <code>yield</code> table, show the number of records as <code>num_records</code> and the average yield rounded to a whole number as <code>avg_yield</code>. Sort from highest to lowest average yield and limit the result to 10 rows.</p><p>Result columns: <code>item</code>, <code>num_records</code>, <code>avg_yield</code>.</p>",
     sql: `SELECT item,
        COUNT(*) AS num_records,
        ROUND(AVG(yield_hg_per_ha)) AS avg_yield
 FROM yield
 GROUP BY item
-ORDER BY avg_yield DESC;`,
+ORDER BY avg_yield DESC
+LIMIT 10;`,
     expected: {
       columns: ["item", "num_records", "avg_yield"],
       rows: [
@@ -73,10 +74,10 @@ ORDER BY avg_yield DESC;`,
       "Yield is in <code>yield</code> and rainfall is in <code>rainfall</code>, so you need a <code>JOIN</code>.",
       "Match rows on <strong>both</strong> country and year: <code>ON r.area = y.area AND r.year = y.year</code>. Short table aliases (<code>y</code>, <code>r</code>) keep it readable.",
       "Filter in <code>WHERE</code>: the crop is <code>'Maize'</code> (text in single quotes, capital M) and the year is 2013.",
-      "Sort by yield from highest to lowest and keep only the first 5 rows with <code>LIMIT</code>.",
+      "Sort by yield from highest to lowest.",
     ],
     prompt:
-      "<p>Which 5 countries had the highest maize yield in 2013? Show each country, its maize yield, and its average rainfall that year.</p>",
+      "<p>Which 5 countries had the highest maize yield (<code>item = 'Maize'</code>) in 2013? Show each country, its maize yield, and its average rainfall that year.</p><p>Result columns: <code>area</code>, <code>yield_hg_per_ha</code>, <code>avg_rainfall_mm</code>.</p>",
     sql: `SELECT y.area,
        y.yield_hg_per_ha,
        r.avg_rainfall_mm
@@ -110,7 +111,7 @@ LIMIT 5;`,
       "<code>ROUND(value, 2)</code> rounds to 2 decimals. Sort hottest first.",
     ],
     prompt:
-      "<p>Using the <code>temp</code> table for the years 1990 through 2013, find the countries whose average temperature over that period was above 28&nbsp;°C. Show the country, how many years of data it has in that range, and the average temperature rounded to 2 decimals. Sort hottest first.</p>",
+      "<p>Using the <code>temp</code> table for the years 1990 through 2013, find the countries whose average temperature over that period was above 28&nbsp;°C. Show the country, how many years of data it has in that range as <code>years</code>, and the average temperature rounded to 2 decimals as <code>avg_temp</code>. Sort hottest first.</p><p>Result columns: <code>area</code>, <code>years</code>, <code>avg_temp</code>.</p>",
     sql: `SELECT area,
        COUNT(*) AS years,
        ROUND(AVG(avg_temp_c), 2) AS avg_temp
@@ -137,10 +138,10 @@ ORDER BY avg_temp DESC;`,
       "Join <code>pesticides</code> to <code>yield</code> on both <code>area</code> and <code>year</code>.",
       "Keep only potato rows with <code>WHERE y.item = 'Potatoes'</code>. Each country-year then appears once, so the pesticide total isn't counted once per crop.",
       "<code>GROUP BY</code> the country, then use <code>SUM(...)</code> for total pesticides and <code>AVG(...)</code> for potato yield, each inside <code>ROUND(...)</code>.",
-      "Sort by the pesticide total, highest first, and keep 3 rows.",
+      "Sort by the pesticide total, highest first.",
     ],
     prompt:
-      "<p>Which 3 countries used the most pesticides <strong>in total</strong> from 1990 to 2016, and what was their average potato yield over the same years? Round both numbers to whole numbers.</p>",
+      "<p>Which 3 countries used the most pesticides <strong>in total</strong> from 1990 to 2016, and what was their average potato yield (<code>item = 'Potatoes'</code>) over the same years? Name the pesticide total <code>total_pesticides</code> and the average potato yield <code>avg_potato_yield</code>, and round both to whole numbers.</p><p>Result columns: <code>area</code>, <code>total_pesticides</code>, <code>avg_potato_yield</code>.</p>",
     sql: `SELECT p.area,
        ROUND(SUM(p.pesticides_tonnes)) AS total_pesticides,
        ROUND(AVG(y.yield_hg_per_ha)) AS avg_potato_yield
@@ -179,7 +180,8 @@ LIMIT 3;`,
   <li><code>Moderate</code>: 500 mm up to (not including) 1500 mm</li>
   <li><code>Wet</code>: 1500 mm or more</li>
 </ul>
-<p>Ignore countries that have no rainfall data at all. Then, for each climate group, show how many countries reported a maize yield in 2013 and their average 2013 maize yield (rounded). Sort by average yield, highest first.</p>
+<p>Ignore countries that have no rainfall data at all. Then, for each climate group (<code>climate</code>), show how many countries reported a maize yield (<code>item = 'Maize'</code>) in 2013 as <code>num_countries</code> and their average 2013 maize yield, rounded to a whole number, as <code>avg_maize_yield</code>. Sort by average yield, highest first.</p>
+<p>Result columns: <code>climate</code>, <code>num_countries</code>, <code>avg_maize_yield</code>.</p>
 <p><strong>Use at least one CTE (<code>WITH</code>).</strong></p>`,
     sql: `WITH country_rain AS (
     SELECT area, AVG(avg_rainfall_mm) AS avg_rain
@@ -219,13 +221,13 @@ ORDER BY avg_maize_yield DESC;`,
     points: 4,
     skills: "RANK · OVER · PARTITION BY · WITH",
     hints: [
-      "Keep only 2016 rows from <code>yield</code>.",
+      "Keep only the rows in <code>yield</code> where <code>year</code> is 2016.",
       "<code>RANK() OVER (PARTITION BY item ORDER BY yield_hg_per_ha DESC)</code> numbers the countries 1, 2, 3, ... separately for each crop.",
       "You can't use a window function in the <code>WHERE</code> of the same query. Compute the rank in a CTE, then select from the CTE <code>WHERE</code> the rank is 1.",
       "Sort the final rows by crop name.",
     ],
     prompt:
-      "<p>For each crop, find the country with the highest yield in 2016. Show the crop, the country, and the yield, sorted by crop name.</p>",
+      "<p>For each crop, find the country with the highest yield in 2016. Show the crop, the country, and the yield, sorted by crop name.</p><p>Result columns: <code>item</code>, <code>area</code>, <code>yield_hg_per_ha</code>.</p>",
     sql: `WITH ranked AS (
     SELECT item, area, yield_hg_per_ha,
            RANK() OVER (PARTITION BY item ORDER BY yield_hg_per_ha DESC) AS rnk
@@ -265,7 +267,7 @@ ORDER BY item;`,
     ],
     badge: "Not graded",
     prompt:
-      "<p>Using <code>LAG</code>, find the 3 years with the largest year-over-year <strong>drop</strong> in US wheat yield (<code>area = 'United States of America'</code>). Show the year, the previous year's yield, that year's yield, and the change.</p>",
+      "<p>Using <code>LAG</code>, find the 3 years with the largest year-over-year <strong>drop</strong> in US wheat yield (<code>area = 'United States of America'</code>). Show the year, the previous year's yield as <code>prev_yield</code>, that year's yield, and the change (that year's yield minus the previous year's) as <code>change</code>.</p><p>Result columns: <code>year</code>, <code>prev_yield</code>, <code>yield_hg_per_ha</code>, <code>change</code>.</p>",
     sql: `WITH us AS (
     SELECT year, yield_hg_per_ha,
            LAG(yield_hg_per_ha) OVER (ORDER BY year) AS prev_yield

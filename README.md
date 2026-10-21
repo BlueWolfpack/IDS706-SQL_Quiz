@@ -1,5 +1,7 @@
 # IDS706 SQL Quiz: Crop Yields
 
+[![Quiz database check](https://github.com/BlueWolfpack/IDS706-SQL_Quiz/actions/workflows/quiz-check.yml/badge.svg?branch=main)](https://github.com/BlueWolfpack/IDS706-SQL_Quiz/actions/workflows/quiz-check.yml)
+
 **Live quiz site: https://ids706-sqlquiz-web.vercel.app/**
 
 A 20-point SQL quiz about global crop yields. A signed-in user picks a question, writes SQL in the browser, runs it against a real PostgreSQL database hosted on Supabase, and sees the result table. Every question has two separate help panels: a **Hint** with clues (which functions to use, how to join the tables, what to watch out for) and an **Answer** with the expected SQL and the expected result, so a grader can run a query and compare it to the answer.

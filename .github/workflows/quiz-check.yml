@@ -1,9 +1,13 @@
 name: Quiz database check
 
 # Runs on every push to main, and can be started by hand from the Actions tab.
+# Also runs on a schedule (Mon and Thu, 13:17 UTC) so the free-tier Supabase project
+# sees activity at least every few days and is not auto-paused for inactivity.
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 13 * * 1,4"
   workflow_dispatch:
 
 jobs:
